@@ -105,7 +105,16 @@ public class BusinessLeadService {
             LeadStatus status, Long promoterId, Long salesmanId, String state, String city, String q, Pageable pageable) {
         long tenantId = TenantIds.require();
         return leadRepository
-                .search(tenantId, status, promoterId, salesmanId, blank(state), blank(city), blank(q), pageable)
+                .search(
+                        tenantId,
+                        status,
+                        promoterId,
+                        salesmanId,
+                        blank(state),
+                        likePattern(city),
+                        likePattern(q),
+                        rawLikePattern(q),
+                        pageable)
                 .map(this::toResponse);
     }
 
@@ -217,5 +226,20 @@ public class BusinessLeadService {
 
     private static String blank(String s) {
         return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    /** Lowercase LIKE pattern; avoids PostgreSQL LOWER(CONCAT(...)) bytea binding issues. */
+    static String likePattern(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return "%" + s.trim().toLowerCase() + "%";
+    }
+
+    static String rawLikePattern(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return "%" + s.trim() + "%";
     }
 }

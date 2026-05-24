@@ -54,6 +54,12 @@ public class PromoterController {
         return promoterService.setStatus(id, status);
     }
 
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        promoterService.delete(id);
+    }
+
     @GetMapping("/{id}")
     public PromoterDetailResponse get(@PathVariable Long id) {
         return promoterService.get(id);

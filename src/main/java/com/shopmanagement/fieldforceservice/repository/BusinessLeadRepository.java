@@ -22,6 +22,8 @@ public interface BusinessLeadRepository extends JpaRepository<BusinessLead, Long
 
     List<BusinessLead> findByTenantIdAndGstinIgnoreCaseAndDeletedAtIsNull(Long tenantId, String gstin);
 
+    Page<BusinessLead> findByTenantIdAndDeletedAtIsNull(long tenantId, Pageable pageable);
+
     @Query(
             """
             SELECT l FROM BusinessLead l
@@ -30,10 +32,10 @@ public interface BusinessLeadRepository extends JpaRepository<BusinessLead, Long
               AND (:promoterId IS NULL OR l.createdByPromoter.id = :promoterId)
               AND (:salesmanId IS NULL OR l.assignedSalesman.id = :salesmanId)
               AND (:state IS NULL OR l.stateCode = :state)
-              AND (:city IS NULL OR LOWER(l.city) LIKE LOWER(CONCAT('%', :city, '%')))
-              AND (:q IS NULL OR LOWER(l.businessName) LIKE LOWER(CONCAT('%', :q, '%'))
-                   OR l.mobile LIKE CONCAT('%', :q, '%')
-                   OR l.leadCode LIKE CONCAT('%', :q, '%'))
+              AND (:cityPattern IS NULL OR LOWER(l.city) LIKE :cityPattern)
+              AND (:qPattern IS NULL OR LOWER(l.businessName) LIKE :qPattern
+                   OR l.mobile LIKE :qRawPattern
+                   OR LOWER(l.leadCode) LIKE :qPattern)
             """)
     Page<BusinessLead> search(
             @Param("tenantId") long tenantId,
@@ -41,8 +43,9 @@ public interface BusinessLeadRepository extends JpaRepository<BusinessLead, Long
             @Param("promoterId") Long promoterId,
             @Param("salesmanId") Long salesmanId,
             @Param("state") String state,
-            @Param("city") String city,
-            @Param("q") String q,
+            @Param("cityPattern") String cityPattern,
+            @Param("qPattern") String qPattern,
+            @Param("qRawPattern") String qRawPattern,
             Pageable pageable);
 
     @Query(
@@ -58,6 +61,8 @@ public interface BusinessLeadRepository extends JpaRepository<BusinessLead, Long
     long countByTenantIdAndLeadStatusAndDeletedAtIsNull(long tenantId, LeadStatus status);
 
     long countByTenantIdAndCreatedByPromoterIdAndDeletedAtIsNull(long tenantId, Long promoterId);
+
+    long countByTenantIdAndAssignedSalesmanIdAndDeletedAtIsNull(long tenantId, Long salesmanId);
 
     long countByTenantIdAndAssignedSalesmanIdAndLeadStatusAndDeletedAtIsNull(
             long tenantId, Long salesmanId, LeadStatus status);

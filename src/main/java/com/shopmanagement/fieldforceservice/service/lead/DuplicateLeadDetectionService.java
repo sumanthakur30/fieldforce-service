@@ -62,8 +62,18 @@ public class DuplicateLeadDetectionService {
 
         if (req.businessName() != null && !req.businessName().isBlank()) {
             String needle = req.businessName().trim().toLowerCase();
+            String nameFragment = needle.substring(0, Math.min(needle.length(), 20));
             leadRepository
-                    .search(tenantId, null, null, null, null, null, needle.substring(0, Math.min(needle.length(), 20)), org.springframework.data.domain.Pageable.ofSize(20))
+                    .search(
+                            tenantId,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            BusinessLeadService.likePattern(nameFragment),
+                            BusinessLeadService.rawLikePattern(nameFragment),
+                            org.springframework.data.domain.Pageable.ofSize(20))
                     .forEach(lead -> {
                         if (seen.add(lead.getId()) && nameSimilar(needle, lead.getBusinessName())) {
                             Double dist = gpsDistance(req, lead);
@@ -76,7 +86,7 @@ public class DuplicateLeadDetectionService {
 
         if (req.gpsLatitude() != null && req.gpsLongitude() != null) {
             leadRepository
-                    .search(tenantId, null, null, null, null, null, null, org.springframework.data.domain.Pageable.ofSize(200))
+                    .findByTenantIdAndDeletedAtIsNull(tenantId, org.springframework.data.domain.Pageable.ofSize(200))
                     .forEach(lead -> {
                         if (lead.getGpsLatitude() == null || lead.getGpsLongitude() == null) {
                             return;

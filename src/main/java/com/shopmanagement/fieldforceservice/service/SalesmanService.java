@@ -10,12 +10,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.shopmanagement.fieldforceservice.api.FieldforceApi.SalesmanResponse;
 import com.shopmanagement.fieldforceservice.api.FieldforceApi.SalesmanUpsert;
+import com.shopmanagement.fieldforceservice.exception.ConflictException;
 import com.shopmanagement.fieldforceservice.exception.NotFoundException;
 import com.shopmanagement.fieldforceservice.model.FieldPersonStatus;
 import com.shopmanagement.fieldforceservice.model.Promoter;
 import com.shopmanagement.fieldforceservice.model.Salesman;
+import com.shopmanagement.fieldforceservice.repository.BusinessLeadRepository;
 import com.shopmanagement.fieldforceservice.repository.PromoterRepository;
 import com.shopmanagement.fieldforceservice.repository.SalesmanRepository;
+import com.shopmanagement.fieldforceservice.repository.ShopRegistrationRepository;
 import com.shopmanagement.fieldforceservice.support.TenantIds;
 
 @Service
@@ -23,10 +26,18 @@ public class SalesmanService {
 
     private final SalesmanRepository salesmanRepository;
     private final PromoterRepository promoterRepository;
+    private final ShopRegistrationRepository shopRegistrationRepository;
+    private final BusinessLeadRepository businessLeadRepository;
 
-    public SalesmanService(SalesmanRepository salesmanRepository, PromoterRepository promoterRepository) {
+    public SalesmanService(
+            SalesmanRepository salesmanRepository,
+            PromoterRepository promoterRepository,
+            ShopRegistrationRepository shopRegistrationRepository,
+            BusinessLeadRepository businessLeadRepository) {
         this.salesmanRepository = salesmanRepository;
         this.promoterRepository = promoterRepository;
+        this.shopRegistrationRepository = shopRegistrationRepository;
+        this.businessLeadRepository = businessLeadRepository;
     }
 
     @Transactional
@@ -70,7 +81,16 @@ public class SalesmanService {
 
     @Transactional
     public void delete(Long id) {
-        salesmanRepository.delete(load(TenantIds.require(), id));
+        long tenantId = TenantIds.require();
+        Salesman s = load(tenantId, id);
+        if (shopRegistrationRepository.countByTenantIdAndSalesman(tenantId, s) > 0) {
+            throw new ConflictException(
+                    "Cannot delete salesman linked to shop registrations. Deactivate instead.");
+        }
+        if (businessLeadRepository.countByTenantIdAndAssignedSalesmanIdAndDeletedAtIsNull(tenantId, id) > 0) {
+            throw new ConflictException("Cannot delete salesman with assigned business leads. Deactivate instead.");
+        }
+        salesmanRepository.delete(s);
     }
 
     @Transactional(readOnly = true)

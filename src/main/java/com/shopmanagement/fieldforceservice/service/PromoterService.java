@@ -23,6 +23,7 @@ import com.shopmanagement.fieldforceservice.model.CommissionEntryStatus;
 import com.shopmanagement.fieldforceservice.model.FieldPersonStatus;
 import com.shopmanagement.fieldforceservice.model.Promoter;
 import com.shopmanagement.fieldforceservice.model.PromoterTerritory;
+import com.shopmanagement.fieldforceservice.repository.BusinessLeadRepository;
 import com.shopmanagement.fieldforceservice.repository.CommissionEntryRepository;
 import com.shopmanagement.fieldforceservice.repository.PromoterRepository;
 import com.shopmanagement.fieldforceservice.repository.PromoterTerritoryRepository;
@@ -38,18 +39,21 @@ public class PromoterService {
     private final SalesmanRepository salesmanRepository;
     private final ShopRegistrationRepository shopRegistrationRepository;
     private final CommissionEntryRepository commissionEntryRepository;
+    private final BusinessLeadRepository businessLeadRepository;
 
     public PromoterService(
             PromoterRepository promoterRepository,
             PromoterTerritoryRepository territoryRepository,
             SalesmanRepository salesmanRepository,
             ShopRegistrationRepository shopRegistrationRepository,
-            CommissionEntryRepository commissionEntryRepository) {
+            CommissionEntryRepository commissionEntryRepository,
+            BusinessLeadRepository businessLeadRepository) {
         this.promoterRepository = promoterRepository;
         this.territoryRepository = territoryRepository;
         this.salesmanRepository = salesmanRepository;
         this.shopRegistrationRepository = shopRegistrationRepository;
         this.commissionEntryRepository = commissionEntryRepository;
+        this.businessLeadRepository = businessLeadRepository;
     }
 
     @Transactional
@@ -82,6 +86,25 @@ public class PromoterService {
         p.setUpdatedAt(Instant.now());
         promoterRepository.save(p);
         return toResponse(p);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        long tenantId = TenantIds.require();
+        Promoter p = load(tenantId, id);
+        if (salesmanRepository.countByTenantIdAndPromoter(tenantId, p) > 0) {
+            throw new ConflictException(
+                    "Cannot delete promoter with salesmen. Deactivate the promoter or remove salesmen first.");
+        }
+        if (shopRegistrationRepository.countByTenantIdAndPromoter(tenantId, p) > 0) {
+            throw new ConflictException(
+                    "Cannot delete promoter linked to shop registrations. Deactivate instead.");
+        }
+        if (businessLeadRepository.countByTenantIdAndCreatedByPromoterIdAndDeletedAtIsNull(tenantId, id) > 0) {
+            throw new ConflictException("Cannot delete promoter with business leads. Deactivate instead.");
+        }
+        territoryRepository.deleteByPromoter(p);
+        promoterRepository.delete(p);
     }
 
     @Transactional(readOnly = true)
