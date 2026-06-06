@@ -23,9 +23,13 @@ import com.shopmanagement.fieldforceservice.model.BusinessLead;
 public class RestShopConversionClient implements ShopConversionClient {
 
     private final RestClient restClient;
+    private final String internalApiKey;
 
-    public RestShopConversionClient(@Value("${fieldforce.shop-integration.base-url:http://shop-service:8080}") String baseUrl) {
+    public RestShopConversionClient(
+            @Value("${fieldforce.shop-integration.base-url:http://shop-service:8080}") String baseUrl,
+            @Value("${fieldforce.shop-integration.internal-api-key:${SECURITY_INVITE_INTERNAL_KEY:}}") String internalApiKey) {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        this.internalApiKey = internalApiKey;
     }
 
     @Override
@@ -60,6 +64,9 @@ public class RestShopConversionClient implements ShopConversionClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Tenant-Id", String.valueOf(tenantId));
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            headers.set("X-Internal-Api-Key", internalApiKey);
+        }
 
         try {
             Map<String, Object> response = restClient
